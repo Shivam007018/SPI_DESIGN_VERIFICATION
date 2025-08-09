@@ -39,7 +39,7 @@ class generator ;
       
       mbx.put(tr.copy());
   
-      $display("[GEN] : send din :%0d" , tr.din);
+      $display("[GEN] :  din :%0d" , tr.din);
       @(sconext) ;  // wait for scoreboard to send the trigger
     end
     -> done ;
@@ -120,7 +120,7 @@ transaction tr ;   /// data container
       sif.new_data <= 1'b0;
       
       @(posedge sif.done) ;
-      $display("[DRV]: DATA SENT :%0d" , tr.din);
+      $display("[DRV]: DATA SENT TO DAC :%0d" , tr.din);
       @(posedge sif.sclk);
     end
    
@@ -343,7 +343,7 @@ module tb ;
   initial begin
     
     env = new(sif);
-    env.gen.count = 4; /// 4transactions 
+    env.gen.count = 7; /// 7 transactions 
     env.run();
   end
   
