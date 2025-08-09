@@ -52,7 +52,7 @@ endclass
 interface spi_if ;
   
 logic clk ;
-logic reset ;
+logic rst ;
 logic new_data ;
 logic [11:0] din ;
 logic sclk ;
@@ -89,13 +89,13 @@ transaction tr ;   /// data container
   
   task reset();
     
-   sif.reset <= 1'b1 ;   // set reset signal 
+   sif.rst <= 1'b1 ;   // set reset signal 
     sif.new_data <=1'b0;   // set new_data 
     sif.din <= 0;
     
     repeat(10) @(posedge sif.clk) ;   // for 10 clock cycles 
     
-    sif.reset <= 1'b0;  ///clear reset signal 
+    sif.rst <= 1'b0;  ///clear reset signal 
     
     repeat(5) @(posedge sif.clk);
   
@@ -325,7 +325,7 @@ module tb ;
   
   spi_if sif();
   
-  top dut (sif.clk , sif.reset , sif.din , sif.new_data , sif.dout , sif.done);
+  top dut (sif.clk , sif.rst , sif.din , sif.new_data , sif.dout , sif.done);
   
   
   
