@@ -1,0 +1,206 @@
+module spi_master(
+  
+input clk,
+input reset ,
+input new_data ,   /// start condition
+ input [11:0] din ,   /// 12 bit data to send 
+output reg cs,
+output reg mosi ,     //// master out slave in 
+output reg sclk 
+
+);
+
+
+  reg [11:0] temp = 0;
+  
+ int div_cnt = 0 ; //// counter for clock divider 
+ int data_cnt =0;  //// counter for sending data
+  
+  typedef enum bit  {idle = 1'b0,  send_data = 1'b1 } state_type;
+  state_type state = idle;
+  
+  //// clock divider fsclk = fclk/20    /////
+  
+  always@(posedge clk) begin
+    
+    if(reset == 1'b1) begin
+      sclk <= 1'b0;
+      div_cnt <=0 ;
+    end
+    
+    else begin
+      if(div_cnt < 10) begin   /// 0-9 
+        div_cnt <= div_cnt +1 ;
+      end
+      else
+        begin
+          sclk <= ~ sclk ;
+          div_cnt <=0;
+        end
+    end
+  end
+  
+  ///////// fsm logic //////////
+  
+  always @(posedge sclk) begin 
+    
+    
+    if (reset ==1'b1 ) begin
+    cs <= 1'b1;
+    mosi <= 1'b0 ; //// active low 
+
+    end
+    
+    else begin 
+    
+    case(state)
+   
+       idle : begin
+              
+         if(new_data ==1'b1) begin 
+           
+           state <= send_data;
+           cs <= 1'b0;
+           temp <= din ;
+         end
+         else begin
+           state <= idle ;
+           temp <= 12'h000;
+         end
+       end
+      
+      
+      send_data : begin
+        
+        if(data_cnt <=11) begin
+              
+          mosi <= temp[data_cnt] ;   //// sending lsb bit first 
+          
+          data_cnt <= data_cnt +1 ;
+          
+        end
+        
+        else begin
+          
+          data_cnt <= 0;
+          state <= idle ;
+          mosi <=  1'b0;
+          cs <= 1'b1 ;
+          
+        end
+         
+      end
+      
+      default : state <= idle ; 
+      
+      
+    endcase
+    end
+  end
+      endmodule 
+           
+
+ /////////////////// slave ///////////////
+  
+        
+      module spi_slave(
+      input cs ,
+      input mosi ,
+      input sclk ,
+      output reg done ,
+      output  [11:0] dout
+      );
+        
+        reg [11:0] temp =12'h000 ;
+        
+       typedef enum bit {detect_start = 1'b0, read_data = 1'b1} state_type;
+state_type state = detect_start;
+      
+        
+       int data_cnt = 0;  // counter to recieve data 
+        
+        
+    //// fsm logic ///////////
+        
+        
+ always @(posedge sclk) begin
+          
+ case(state) 
+            
+     detect_start :   begin
+              
+           done <=1'b0 ;
+              
+            if(cs == 1'b0) begin
+                
+              state <= read_data ;
+                
+              end
+              else 
+                
+                state <= detect_start ;
+            end
+            
+      read_data : begin
+                   
+        if(data_cnt <=11 ) begin
+          
+          temp <= {mosi , temp[11:1]};
+          data_cnt <= data_cnt +1;
+        end
+        
+        else begin
+          
+          done <=1'b1 ;    //// all 12 bitss are recived 
+          data_cnt <=0 ;
+          state <= detect_start ;
+        end
+      end
+ 
+ endcase
+   
+ end
+   assign dout = temp ;
+      endmodule 
+                      
+                           
+   /////////// top module ////////////////////
+                           
+                           
+  
+  
+  
+      module top(
+                           
+     input clk,
+     input reset ,
+     input [11:0] din ,
+     input new_data,
+      output [11:0] dout ,       
+     output done   
+      );
+        wire cs ;
+        wire mosi;
+        wire sclk ;
+        
+        
+        spi_master m1( .clk(clk),
+                   .reset(reset),
+                   .din(din),
+                   .new_data(new_data),
+                   .cs(cs),
+                   .mosi(mosi),
+                   .sclk(sclk)
+        
+        
+        );  
+        
+        
+        spi_slave s1( .cs(cs),
+                      .sclk(sclk),
+                      .mosi(mosi) ,
+                      .done(done),
+                      .dout(dout)
+    );
+      
+      endmodule
