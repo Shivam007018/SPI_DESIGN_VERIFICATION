@@ -7,4 +7,5 @@ Key Features of SPI: Full-duplex transmission (both directions simultaneously) F
 
 <img width="909" height="458" alt="Screenshot 2025-08-05 132611" src="https://github.com/user-attachments/assets/cd56ecc3-053e-444c-824b-409e2576b0ee" />
 <img width="369" height="317" alt="Screenshot 2025-08-05 145015" src="https://github.com/user-attachments/assets/7d80d68c-339d-4250-9e4f-be7ef82eef65" />
+<img width="1131" height="528" alt="image" src="https://github.com/user-attachments/assets/6c05140e-895b-4a16-9c29-a6902cdf11bb" />
 
