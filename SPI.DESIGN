@@ -1,7 +1,7 @@
 module spi_master(
   
 input clk,
-input reset ,
+input rst ,
 input new_data ,   /// start condition
  input [11:0] din ,   /// 12 bit data to send 
 output reg cs,
@@ -23,7 +23,7 @@ output reg sclk
   
   always@(posedge clk) begin
     
-    if(reset == 1'b1) begin
+    if(rst == 1'b1) begin
       sclk <= 1'b0;
       div_cnt <=0 ;
     end
@@ -45,7 +45,7 @@ output reg sclk
   always @(posedge sclk) begin 
     
     
-    if (reset ==1'b1 ) begin
+    if (rst ==1'b1 ) begin
     cs <= 1'b1;
     mosi <= 1'b0 ; //// active low 
 
@@ -173,7 +173,7 @@ state_type state = detect_start;
       module top(
                            
      input clk,
-     input reset ,
+     input rst ,
      input [11:0] din ,
      input new_data,
       output [11:0] dout ,       
@@ -185,7 +185,7 @@ state_type state = detect_start;
         
         
         spi_master m1( .clk(clk),
-                   .reset(reset),
+                   .rst(rst),
                    .din(din),
                    .new_data(new_data),
                    .cs(cs),
