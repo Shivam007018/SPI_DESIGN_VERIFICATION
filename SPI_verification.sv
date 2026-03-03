@@ -1,360 +1,245 @@
-class transaction ;
-  
- bit new_data ;   /// manually handled in code
-  rand bit[11:0] din ;
-  bit[11:0] dout ;
-  
+class transaction;
+  bit        new_data;
+  rand bit [11:0] din;
+  bit [11:0] dout;
+
   function transaction copy();
-    copy = new();
+    copy          = new();
     copy.new_data = new_data;
-    copy.din = din ;
-    copy.dout = dout ;
-    
+    copy.din      = din;
+    copy.dout     = dout;
   endfunction
-  
 endclass
+
 
 ///////////// generator /////////////
 
+class generator;
+  transaction tr;
+  mailbox #(transaction) mbx;
+  int   count = 0;      /// no. of transactions to be generated 
+  event done;      // even to end the simulation
+  event sconext;    // event to send the next transiton from scoreboard
 
-class generator ;
-  
-  transaction tr ;
-  
-  mailbox #(transaction) mbx ;
-  int count =0  ; /// no. of transactions to be generated 
-  event done ;  // event to end the simulation 
-  event sconext ;  /// event to send the next trnsaction
-  
-  
-  function new(mailbox #(transaction)mbx);
+  function new(mailbox #(transaction) mbx);
     this.mbx = mbx;
     tr = new();
   endfunction
-  
+
   task run();
-    
-    repeat(count) begin 
+    repeat(count) begin
       assert(tr.randomize()) else $error("[GEN] : RANDOMIZATION FAILED");
-      
       mbx.put(tr.copy());
-  
-      $display("[GEN] :  din :%0d" , tr.din);
-      @(sconext) ;  // wait for scoreboard to send the trigger
+      $display("[GEN] : din :%0d", tr.din);
+      @(sconext);            // wait for scoreboard to send the trigger
     end
-    -> done ;
-    
+    ->done;
   endtask
 endclass
 
-///////////// interface ///////////
 
-interface spi_if ;
-  
-logic clk ;
-logic rst ;
-logic new_data ;
-logic [11:0] din ;
-logic sclk ;
-logic mosi ;
-logic cs ;
-logic [11:0] dout;
-logic done ; 
+///////////// interface /////////////
 
+interface spi_if;
+  logic        clk;
+  logic        rst;
+  logic        new_data;
+  logic [11:0] din;
+  logic        sclk;
+  logic        mosi;
+  logic        cs;
+  logic [11:0] dout;
+  logic        done;
 endinterface
 
 
+////////////// driver //////////////
 
-////////////// driver //////////
+class driver;
+  virtual spi_if sif;
+  transaction tr;
+  mailbox #(transaction)   mbx;              // to rcv  data from monitor 
+  mailbox #(bit [11:0])    mbxds;            // from drv to scbd for verifcation
 
-class driver ;
- 
-  virtual spi_if sif; 
-  
-transaction tr ;   /// data container 
-  
-  
-  mailbox #(transaction) mbx ;    // to rcv  data 
-  mailbox #(bit[11:0]) mbxds ;// from drv to scbd for verifctn
-  
-  bit[11:0] din ;
-  
-  function new(mailbox #(bit [11:0]) mbxds ,mailbox #(transaction) mbx );
-    
-    this.mbx = mbx ;    // initialise mailboxes
-    this.mbxds = mbxds ;
+  function new(mailbox #(bit [11:0]) mbxds, mailbox #(transaction) mbx);
+    this.mbx   = mbx;
+    this.mbxds = mbxds;
   endfunction
-  
-  
-  
+
   task reset();
-    
-   sif.rst <= 1'b1 ;   // set reset signal 
-    sif.new_data <=1'b0;   // set new_data 
-    sif.din <= 0;
-    
-    repeat(10) @(posedge sif.clk) ;   // for 10 clock cycles 
-    
-    sif.rst <= 1'b0;  ///clear reset signal 
-    
-    repeat(5) @(posedge sif.clk);
-  
-    $display ("[DRV] : RESET DONE") ;
-    
-  endtask 
-  
-  
-  task run() ;
-    
+    sif.rst      <= 1'b1;
+    sif.new_data <= 1'b0;
+    sif.din      <= 0;
+    repeat(10) @(posedge sif.clk);
+    sif.rst <= 1'b0;
+    repeat(5)  @(posedge sif.clk);
+    $display("[DRV] : RESET DONE");
+  endtask
+
+  task run();
     forever begin
+      mbx.get(tr);
+      sif.new_data <= 1'b1;     // manually new_data high
+      sif.din      <= tr.din;
+      mbxds.put(tr.din);           /// sent to scbd which will serve as golden data 
       
-      mbx.get(tr);   /// received from generator 
-      sif.new_data <= 1'b1 ;
-      
-      sif.din <= tr.din ;
-      
-      mbxds.put(tr.din);  /// sent to scbd 
-      
+
       @(posedge sif.sclk);
-      
+      @(posedge sif.sclk);   
       sif.new_data <= 1'b0;
-      
-      @(posedge sif.done) ;
-      $display("[DRV]: DATA SENT TO DAC :%0d" , tr.din);
+
+      @(posedge sif.done);       // wait till done is high which shows one complete complete transmision
+      $display("[DRV] : DATA SENT TO DAC :%0d", tr.din);
       @(posedge sif.sclk);
     end
-   
   endtask
- 
-  
 endclass
-  
-  
- /////////////// monitor class/////////////
 
 
-class monitor ;
-  
-  
-virtual spi_if sif ;
-  bit[11:0] dout ;
-  
-  mailbox #(bit[11:0])mbx;
-  
-  transaction tr ;
-  
-  function new(mailbox #(bit[11:0])mbx);
-    this.mbx = mbx ;
+/////////////// monitor ///////////////
+
+class monitor;
+  virtual spi_if sif;
+  mailbox #(bit [11:0]) mbx;
+  transaction tr;
+
+  function new(mailbox #(bit [11:0]) mbx);
+    this.mbx = mbx;
+    tr = new();  
   endfunction
-  
-  
+
   task run();
     forever begin
-    @(posedge sif.clk) ;
-    @(posedge sif.done) ;
-    
-    tr.dout = sif.dout ;  // record data output 
-    
-    @(posedge sif.clk) ; 
-    
-    $display("[MON] : DATA SENT :%0d" , tr.dout);
-    
-    mbx.put(tr.dout);
+      @(posedge sif.done);        //  wait until transfer is complete 
+      @(posedge sif.clk);      
+      tr.dout = sif.dout;
+      $display("[MON] : DATA RECEIVED :%0d", tr.dout);
+      mbx.put(tr.dout);
     end
- 
-    
   endtask
-  
-
-  
 endclass
-  
-    
-  
-  
-  ///////////// scoreboard ////////
 
 
-class scoreboard ;
-  
-  
-  mailbox #(bit[11:0])mbxds , mbxms ;
-  
-  
-  event sconext ;
-  
-  bit[11:0] ds ;   //// data from driver
-  bit [11:0]ms ; ///// data from monitor 
-  
-  
-  function new(mailbox #(bit[11:0])mbxds , mailbox #(bit[11:0])mbxms );
-    
-    this.mbxms = mbxms; 
-    this.mbxds = mbxds ;
+///////////// scoreboard /////////////
+
+class scoreboard;
+  mailbox #(bit [11:0]) mbxds, mbxms;
+  event   sconext;
+  bit [11:0] ds;
+  bit [11:0] ms;
+
+  function new(mailbox #(bit [11:0]) mbxds, mailbox #(bit [11:0]) mbxms);
+    this.mbxds = mbxds;
+    this.mbxms = mbxms;
   endfunction
-  
-  
-  
+
   task run();
     forever begin
-      
       mbxds.get(ds);
       mbxms.get(ms);
-      
-      $display("[SCO] : DRV :%0d MON : %0d ", ms ,ds);
-  
-  
-      if(ds==ms)
-        $display("DATA MATCHED ");
+      $display("[SCO] : DRV :%0d  MON :%0d", ds, ms);
+      if (ds == ms)
+        $display("DATA MATCHED");
       else
-        
         $display("DATA MISMATCHED");
-      
       $display("---------------------");
-      
-      ->sconext ; // trigger for next_transaction
-  
-  
-  
+      ->sconext;
     end
   endtask
-  
-  
-  
 endclass
-  
-  
-  
-  //////////////// enviroment classs /////
 
 
-class environment ;
-  
-  
-  generator gen;
-  monitor mon;
-  driver drv;
-  scoreboard sco ;
-  
-  mailbox #(transaction)mbxgd ; // mailbox from generator to driver
-  
-  mailbox #(bit[11:0])mbxds;   /// from driver to scbd
-  mailbox #(bit[11:0])mbxms;  /// from monitor to scbd
-  
+//////////////// environment ///////////
+
+class environment;
+  generator  gen;
+  monitor    mon;
+  driver     drv;
+  scoreboard sco;
+
+  mailbox #(transaction)   mbxgd;
+  mailbox #(bit [11:0])    mbxds;
+  mailbox #(bit [11:0])    mbxms;
+
   event nextgs;
-  
-  virtual spi_if sif ;
-  
+
+  virtual spi_if sif;
+
   function new(virtual spi_if sif);
-    
-    this.sif = sif ;
-    
+    this.sif = sif;
+
     mbxgd = new();
     mbxds = new();
     mbxms = new();
-    
-    
+
     gen = new(mbxgd);
-    drv = new(mbxds , mbxgd);
+    drv = new(mbxds, mbxgd);
     mon = new(mbxms);
-    sco = new(mbxds , mbxms);
-    
-    
-    drv.sif = this.sif ;
-    mon.sif = this.sif ;
-    
-    
-    gen.sconext = nextgs ;
-    sco.sconext = nextgs ;
-    
-    
+    sco = new(mbxds, mbxms);
+
+    drv.sif = this.sif;
+    mon.sif = this.sif;
+
+    gen.sconext = nextgs;
+    sco.sconext = nextgs;
   endfunction
-  
-  
-  
+
   task pre_test();
-    drv.reset();    /// perform driver test
-    
+    drv.reset();
   endtask
-  
-  
-  
+
   task test();
     fork
       gen.run();
       drv.run();
       mon.run();
       sco.run();
-      
-   
     join_any
-  
-  
   endtask
-  
+
   task post_test();
-    wait(gen.done.triggered);   /// wait for genertor to finish 
+    wait(gen.done.triggered);
     $finish();
-    
   endtask
-  
-  
-  
-  
-  
-  
+
   task run();
-    
     pre_test();
     test();
     post_test();
-    
-  
-    
   endtask
-  
-  
 endclass
-  
-  
-  /////////////////////// testbench //////////
 
 
+/////////////////////// testbench ////////
 
-module tb ;
-  
+module tb;
   spi_if sif();
-  
-  top dut (sif.clk , sif.rst , sif.din , sif.new_data , sif.dout , sif.done);
-  
-  
-  
-  
-  environment env ;
-  
+
+  top dut (
+    .clk      (sif.clk),
+    .rst      (sif.rst),
+    .din      (sif.din),
+    .new_data (sif.new_data),
+    .dout     (sif.dout),
+    .done     (sif.done)
+  );
+
+  environment env;
+
+  initial sif.clk <= 0;
+
+  always #10 sif.clk <= ~sif.clk;   
+
+  assign sif.sclk = dut.m1.sclk;
+
   initial begin
-    sif.clk <= 0;
-  end
-  
-  always #10 sif.clk <= sif.clk ;   /// clock generation 
-  
-  assign sif.sclk = dut.m1.sclk ; 
-  
-  initial begin
-    
     env = new(sif);
-    env.gen.count = 7; /// 7 transactions 
+    env.gen.count = 7;
     env.run();
   end
-  
- initial begin
+
+  initial begin
     $dumpfile("dump.vcd");
     $dumpvars;
   end
 endmodule
-  
-  
-  
-  
-  
-  
