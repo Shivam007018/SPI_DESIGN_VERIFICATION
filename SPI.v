@@ -11,7 +11,8 @@ module spi_master(
   parameter IDLE      = 1'b0;
   parameter SEND_DATA = 1'b1;
 
-  reg [11:0] temp     = 0;
+  reg [11:0] temp     = 0;        // temporary internal register
+
   reg [3:0]  div_cnt  = 0;    //  4-bit: counts up to 10
   reg [3:0]  data_cnt = 0;    //  4-bit: counts up to 11
   reg   state   ;
