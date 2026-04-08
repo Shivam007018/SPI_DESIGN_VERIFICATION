@@ -92,8 +92,7 @@ module spi_slave(
 
   parameter DETECT_START = 1'b0;
   parameter READ_DATA    = 1'b1;
-
-  reg [11:0] temp     = 12'h000;
+  
   reg        state    = DETECT_START;
   reg [3:0]  data_cnt = 0;           //  4-bit: counts up to 11
 
@@ -116,7 +115,7 @@ module spi_slave(
 
         READ_DATA : begin
           if (data_cnt <= 11) begin
-            temp     <= {mosi, temp[11:1]};  // shift in LSB first
+            dout     <= {mosi, dout[11:1]};  // shift in LSB first
             data_cnt <= data_cnt + 1;
           end
           else begin
