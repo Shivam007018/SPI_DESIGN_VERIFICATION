@@ -108,7 +108,6 @@ module spi_slave(
       case (state)
 
         DETECT_START : begin
-          done <= 1'b0;
           if (cs == 1'b0)
             state <= READ_DATA;
           else
