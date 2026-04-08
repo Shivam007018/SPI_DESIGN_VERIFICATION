@@ -3,7 +3,7 @@ module spi_master(
   input rst,
   input new_data,
   input [11:0] din,
-  output reg cs,
+  output reg cs,    // slave select
   output reg mosi,
   output reg sclk
 );
