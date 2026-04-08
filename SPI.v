@@ -14,7 +14,7 @@ module spi_master(
   reg [11:0] temp     = 0;
   reg [3:0]  div_cnt  = 0;    //  4-bit: counts up to 10
   reg [3:0]  data_cnt = 0;    //  4-bit: counts up to 11
-  reg        state    = IDLE;
+  reg   state   ;
 
   //// clock divider fsclk = fclk/20
   always @(posedge clk) begin
