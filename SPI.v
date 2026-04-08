@@ -82,12 +82,12 @@ endmodule
 /////////////////// slave ///////////////
 
 module spi_slave(
-  input         cs,
-  input         mosi,
-  input         sclk,
-  input         rst,          
+  input    cs,
+  input     mosi,
+  input    sclk,
+  input     rst,          
   output reg    done,
-  output [11:0] dout
+  output reg [11:0] dout
 );
 
   parameter DETECT_START = 1'b0;
@@ -131,7 +131,6 @@ module spi_slave(
     end
   end
 
-  assign dout = temp;
 
 endmodule
 
