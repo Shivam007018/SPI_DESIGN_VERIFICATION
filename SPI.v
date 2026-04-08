@@ -24,7 +24,7 @@ module spi_master(
       div_cnt <= 0;
     end
     else begin
-      if (div_cnt < 10)
+      if (div_cnt < 9)
         div_cnt <= div_cnt + 1;
       else begin
         sclk    <= ~sclk;
